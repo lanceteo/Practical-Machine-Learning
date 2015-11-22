@@ -1,0 +1,88 @@
+---
+title: "Practical Machine Learning - Assignment Writeup"
+author: "Lance Teo"
+date: "Sunday, November 22, 2015"
+output: html_document
+---
+
+##Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+###Data Cleaning and Processing
+
+Downloading the Data
+
+```{r, echo=TRUE, eval=FALSE}
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "./pml-training.csv")
+download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "./pml-testing.csv")
+```
+
+Reading the Data
+
+```{r, echo=TRUE}
+train<-read.csv("pml-training.csv", header=T, na.strings=c("NA", "#DIV/0!"))
+test<-read.csv("pml-testing.csv", header=T, na.string=c("NA", "#DIV/0!"))
+```
+
+Cleaning the Data
+
+* Removing NA
+
+```{r, echo=TRUE}
+train.nona<-train[, apply(train, 2, function(x) !any(is.na(x)))] 
+dim(train.nona)
+```
+
+* Removing variables not related to dependent variables
+
+```{r, echo=TRUE}
+remove = c('X', 'user_name', 'raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window')
+train.nore <- train.nona[, -which(names(train.nona) %in% remove)]
+dim(train.nore)
+```
+
+###Data Partitioning and Cross Validation
+
+Load Required Library
+```{r, echo=TRUE}
+library(caret)
+```
+
+Data Partitioning (75% Training, 25% Testing  )
+```{r, echo=TRUE}
+trainIndex <- createDataPartition(y=train.nore$classe, p=0.75, list=FALSE)
+training <- train.nore[trainIndex,]
+testing <- train.nore[-trainIndex,]
+```
+
+Dimension of Partitions
+```{r, echo=TRUE}
+dim(training)
+dim(testing)
+```
+
+###Results
+
+Generating Random Forest Trees for Training Set using Cross Validation
+```{r, echo=TRUE}
+set.seed(4444)
+control<-trainControl(method="cv", number=5, allowParallel=T, verbose=T)
+rf<-train(classe~.,data=training, method="rf", trControl=control, verbose=F)
+```
+
+Examine the accuracy and estimated error of predicrion
+```{r, echo=TRUE}
+predrf<-predict(rf, newdata=testing)
+confusionMatrix(predrf, testing$classe)
+```
+
+###Conclusion
+
+An accuracy of 99.39% with a 95% CI [0.9915-0.9957] was achieved accompanied by a Kappa value of 0.9923.
+
+Prediction of the Testing Set given
+```{r, echo=TRUE}
+pred<-predict(rf, newdata=test)
+pred
+```
